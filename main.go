@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 )
@@ -25,10 +28,58 @@ func serveRoot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	query := struct {
+		Query string `json:"query"`
+	}{
+		Query: `
+			query GreennessForecast {
+				greennessForecast {
+					validFrom
+					validTo
+					greennessScore
+					greennessIndex
+					highlightFlag
+				}
+			}
+		`,
+	}
+
+	body, err := json.Marshal(query)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	request, err := http.NewRequest(http.MethodPost, "https://api.octopus.energy/v1/graphql/", bytes.NewBuffer(body))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	request.Header.Add("Content-Type", "application/json")
+
+	client := &http.Client{}
+
+	response, err := client.Do(request)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer response.Body.Close()
+
+	responseBytes, err := io.ReadAll(response.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	responseBody := string(responseBytes)
+
 	tmplt.Execute(w, struct {
 		CurrentWatts int
-	} {
+		Greenness    string
+	}{
 		CurrentWatts: 5,
+		Greenness:    responseBody,
 	})
 }
 
