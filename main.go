@@ -1,6 +1,7 @@
 package main
 
 import (
+	"html/template"
 	"log"
 	"net/http"
 )
@@ -18,13 +19,26 @@ func serveRoot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.ServeFile(w, r, "home.html")
+	tmplt, err := template.ParseFiles("home.html")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	tmplt.Execute(w, struct {
+		CurrentWatts int
+	} {
+		CurrentWatts: 5,
+	})
 }
 
 func main() {
 	http.HandleFunc("/", serveRoot)
 
-	err := http.ListenAndServe(":9090", nil)
+	addr := "localhost:9090"
+
+	log.Printf("Serving on %s\n", addr)
+	err := http.ListenAndServe("localhost:9090", nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
