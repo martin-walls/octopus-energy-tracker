@@ -38,6 +38,8 @@ func query(q Query) ([]byte, error) {
 	}
 	defer response.Body.Close()
 
+	log.Printf("Status %v", response.StatusCode)
+
 	responseBytes, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, err
@@ -47,9 +49,9 @@ func query(q Query) ([]byte, error) {
 }
 
 type ObtainKrakenTokenResponse struct {
-	Token string `json:"token"`
-	RefreshToken string `json:"refreshToken"`
-	RefreshExpiresIn int `json:"refreshExpiresIn"`
+	Token            string `json:"token"`
+	RefreshToken     string `json:"refreshToken"`
+	RefreshExpiresIn int    `json:"refreshExpiresIn"`
 }
 
 func auth() error {
@@ -77,9 +79,11 @@ func auth() error {
 		return err
 	}
 
+	log.Println(string(responseBytes))
+
 	response := struct {
 		Data struct {
-			ObtainKrakenToken ObtainKrakenTokenResponse `json:"obtainKrakenToken"`
+			ObtainKrakenToken *ObtainKrakenTokenResponse `json:"obtainKrakenToken"`
 		} `json:"data"`
 	}{}
 
@@ -88,8 +92,12 @@ func auth() error {
 		return err
 	}
 
-	log.Println(response.Data.ObtainKrakenToken.RefreshToken)
-	log.Println(response.Data.ObtainKrakenToken.RefreshExpiresIn)
+	if response.Data.ObtainKrakenToken == nil {
+		log.Println("An error occurred :(")
+	} else {
+		log.Println(response.Data.ObtainKrakenToken.RefreshToken)
+		log.Println(response.Data.ObtainKrakenToken.RefreshExpiresIn)
+	}
 
 	return nil
 }
