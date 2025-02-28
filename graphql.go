@@ -23,8 +23,6 @@ func Query(q QueryBody) ([]byte, error) {
 		return nil, err
 	}
 
-	log.Println(string(body))
-
 	request, err := http.NewRequest(http.MethodPost, octopusBaseUrl, bytes.NewBuffer(body))
 	if err != nil {
 		return nil, err
@@ -37,7 +35,7 @@ func Query(q QueryBody) ([]byte, error) {
 	}
 	defer response.Body.Close()
 
-	log.Printf("Status %v", response.StatusCode)
+	log.Printf("Octopus API returned status %v", response.StatusCode)
 
 	responseBytes, err := io.ReadAll(response.Body)
 	if err != nil {

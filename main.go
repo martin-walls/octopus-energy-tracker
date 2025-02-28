@@ -85,6 +85,8 @@ func main() {
 
 	auth()
 
+	log.Printf("Auth token: %v", storedToken.Token)
+
 	addr := "localhost:9090"
 
 	log.Printf("Serving on %s\n", addr)

@@ -4,26 +4,35 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"os"
+	"time"
 )
 
-type octopusAuth struct {
-	Token        string
-	RefreshToken string
+// The token to use to authenticate with the Octopus API.
+type krakenToken struct {
+	Token string
+	// Unix timestamp when the token will expire
+	TokenExpiresAt int64
+	RefreshToken   string
 	// Unix timestamp when the refresh token will expire
 	RefreshTokenExpiresAt int64
 }
 
-type ObtainKrakenTokenResponse struct {
-	Token            string `json:"token"`
-	RefreshToken     string `json:"refreshToken"`
-	RefreshExpiresIn int    `json:"refreshExpiresIn"`
+func (token *krakenToken) hasTokenExpired() bool {
+	if token == nil {
+		return true
+	}
+	return time.Now().Unix() < token.TokenExpiresAt
 }
 
-func obtainKrakenToken() (*ObtainKrakenTokenResponse, error) {
-	apiKey := os.Getenv("OCTOPUS_API_KEY")
+func (token *krakenToken) hasRefreshTokenExpired() bool {
+	if token == nil {
+		return true
+	}
+	return time.Now().Unix() < token.RefreshTokenExpiresAt
+}
 
+func obtainKrakenToken(input any) (*krakenToken, error) {
 	q := QueryBody{
 		Query: `mutation ObtainKrakenToken($input: ObtainJSONWebTokenInput!) {
 			obtainKrakenToken(input: $input) {
@@ -33,11 +42,7 @@ func obtainKrakenToken() (*ObtainKrakenTokenResponse, error) {
 			}
 		}`,
 		Variables: map[string]any{
-			"input": struct {
-				APIKey string
-			}{
-				APIKey: apiKey,
-			},
+			"input": input,
 		},
 	}
 
@@ -46,15 +51,17 @@ func obtainKrakenToken() (*ObtainKrakenTokenResponse, error) {
 		return nil, err
 	}
 
-	log.Println(string(responseBytes))
-
 	response := struct {
 		Data struct {
-			ObtainKrakenToken *ObtainKrakenTokenResponse `json:"obtainKrakenToken"`
+			ObtainKrakenToken *struct {
+				Token            string `json:"token"`
+				RefreshToken     string `json:"refreshToken"`
+				RefreshExpiresIn int    `json:"refreshExpiresIn"`
+			} `json:"obtainKrakenToken"`
 		} `json:"data"`
-        Errors *[]struct {
-            Message string `json:"message"`
-        } `json:"errors"`
+		Errors *[]struct {
+			Message string `json:"message"`
+		} `json:"errors"`
 	}{}
 
 	err = json.Unmarshal(responseBytes, &response)
@@ -63,25 +70,69 @@ func obtainKrakenToken() (*ObtainKrakenTokenResponse, error) {
 	}
 
 	if response.Data.ObtainKrakenToken == nil {
-        errorMsg := "Unknown error"
-        if response.Errors != nil && len(*response.Errors) > 0 {
-            errorMsg = (*response.Errors)[0].Message
-        }
+		errorMsg := "Unknown error"
+		if response.Errors != nil && len(*response.Errors) > 0 {
+			errorMsg = (*response.Errors)[0].Message
+		}
 
-        return nil, errors.New(fmt.Sprintf("Failed to obtain Kraken token: %s", errorMsg))
+		return nil, errors.New(fmt.Sprintf("Failed to obtain Kraken token: %s", errorMsg))
 	}
 
-	return response.Data.ObtainKrakenToken, nil
+	result := krakenToken{
+		Token:                 response.Data.ObtainKrakenToken.Token,
+		TokenExpiresAt:        time.Now().Add(time.Hour).Unix(),
+		RefreshToken:          response.Data.ObtainKrakenToken.RefreshToken,
+		RefreshTokenExpiresAt: int64(response.Data.ObtainKrakenToken.RefreshExpiresIn),
+	}
+
+	return &result, nil
 }
 
+func authWithApiKey() (*krakenToken, error) {
+	apiKey := os.Getenv("OCTOPUS_API_KEY")
+
+	return obtainKrakenToken(struct {
+		APIKey string
+	}{
+		APIKey: apiKey,
+	})
+}
+
+func authWithRefreshToken(token string) (*krakenToken, error) {
+	return obtainKrakenToken(struct {
+		refreshToken string
+	}{
+		refreshToken: token,
+	})
+}
+
+var storedToken *krakenToken
+
 func auth() error {
-    tokenResult, err := obtainKrakenToken()
+	if !storedToken.hasTokenExpired() {
+		// We have a token; nothing to do here
+		return nil
+	}
 
-    if err != nil {
-        log.Println(err)
-    }
+	if !storedToken.hasRefreshTokenExpired() {
+		// Token has expired but refresh token is still valid
+		// Authenticate with refresh token
+		tokenResult, err := authWithRefreshToken(storedToken.RefreshToken)
+		if err != nil {
+			return fmt.Errorf("Failed to get kraken token: %w", err)
+		}
 
-    log.Println(tokenResult)
+		storedToken = tokenResult
+		return nil
+	}
 
+	// No valid token or refresh token
+	// authenticate fresh
+	tokenResult, err := authWithApiKey()
+	if err != nil {
+		return fmt.Errorf("Failed to get kraken token: %w", err)
+	}
+
+	storedToken = tokenResult
 	return nil
 }
