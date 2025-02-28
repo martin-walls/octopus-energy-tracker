@@ -81,11 +81,15 @@ func serveRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	octopus := Octopus{}
+	oerr := octopus.auth()
+	if oerr != nil {
+		log.Printf("Error in auth: %v", oerr)
+	}
+
+	log.Printf("Auth token: %s", octopus.Token)
+
 	http.HandleFunc("/", serveRoot)
-
-	auth()
-
-	log.Printf("Auth token: %v", storedToken.Token)
 
 	addr := "localhost:9090"
 
