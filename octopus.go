@@ -49,6 +49,7 @@ func (octo *Octopus) hasValidRefreshToken() bool {
 // this method directly; they provide the necessary input arguments.
 func (octo *Octopus) obtainKrakenToken(input any) error {
 	q := QueryBody{
+		name: "ObtainKrakenToken",
 		Query: `mutation ObtainKrakenToken($input: ObtainJSONWebTokenInput!) {
 			obtainKrakenToken(input: $input) {
 				token
@@ -209,6 +210,7 @@ func (octo *Octopus) obtainAccountDetails() error {
 	}
 
 	q := QueryBody{
+		name: "Account",
 		Query: `query Account($accountNumber: String!) {
 			account(accountNumber: $accountNumber) {
 				electricityAgreements(active: true) {
@@ -294,6 +296,7 @@ func (octo *Octopus) LiveConsumption() (*ConsumptionReading, error) {
 	}
 
 	q := QueryBody{
+		name: "SmartMeterTelemetry",
 		Query: `query SmartMeterTelemetry(
 			$deviceId: String!
 			$start: DateTime!

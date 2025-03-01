@@ -13,6 +13,8 @@ const octopusBaseUrl = "https://api.octopus.energy/v1/graphql/"
 var httpClient = &http.Client{}
 
 type QueryBody struct {
+	// The name of the query, used for informative log outputs.
+	name      string
 	Query     string         `json:"query"`
 	Variables map[string]any `json:"variables"`
 }
@@ -39,7 +41,7 @@ func Query(q QueryBody, headers map[string]string) ([]byte, error) {
 	}
 	defer response.Body.Close()
 
-	log.Printf("Octopus API returned status %v", response.StatusCode)
+	log.Printf("Octopus query '%s' returned status %v", q.name, response.StatusCode)
 
 	responseBytes, err := io.ReadAll(response.Body)
 	if err != nil {
