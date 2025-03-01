@@ -313,7 +313,7 @@ func (octo *Octopus) LiveConsumption() (*ConsumptionReading, error) {
 		}`,
 		Variables: map[string]any{
 			"deviceId": octo.ElectricityMeterDeviceId,
-			"start":    time.Now().Add(-2 * time.Minute).Format(time.RFC3339),
+			"start":    time.Now().Add(-20 * time.Second).Format(time.RFC3339),
 			"end":      time.Now().Format(time.RFC3339),
 		},
 	}
