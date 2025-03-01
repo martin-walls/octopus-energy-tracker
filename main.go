@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html/template"
 	"log"
@@ -95,7 +96,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	defer c.CloseNow()
 
 	// Allow websocket to be open for at most one minute
-	ctx, cancel := context.WithTimeout(r.Context(), time.Minute)
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
 
 	// Handle this as a write-only websocket
@@ -113,8 +114,9 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 			return
 		case <-t:
 			err = c.Write(ctx, websocket.MessageText, fmt.Appendf(nil, "Value is %d", i))
-			if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
-				log.Println("Closing websocket as timeout expired")
+			if websocket.CloseStatus(err) == websocket.StatusNormalClosure ||
+				errors.Is(err, context.DeadlineExceeded) {
+				log.Println("Timeout expired")
 				return
 			} else if err != nil {
 				log.Printf("err: %v", err)

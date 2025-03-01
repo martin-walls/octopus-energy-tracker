@@ -23,5 +23,7 @@ async function ws() {
 
   socket.addEventListener("close", (e) => {
     console.log("Websocket closed:", e);
+    console.log("Reconnecting...");
+    setTimeout(ws, 1000);
   });
 }
