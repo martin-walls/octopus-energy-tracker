@@ -20,6 +20,11 @@ type Octopus struct {
 	RefreshToken string
 	// Unix timestamp when the refresh token will expire.
 	RefreshTokenExpiresAt int64
+	// The Octopus account number (A-xxxxxxxx).
+	// Use [Octopus.AccountNumber()] to retrieve and cache the value.
+	accountNumber string
+	// The device ID of the electricity smart meter.
+	ElectricityMeterDeviceId string
 }
 
 // Checks if we have a valid auth token that has not expired.
@@ -176,11 +181,31 @@ func (octo *Octopus) query(q QueryBody) ([]byte, error) {
 	return Query(q, headers)
 }
 
-func (octo *Octopus) smartMeterId() (string, error) {
-	accountNumber := os.Getenv("OCTOPUS_ACCOUNT_NUMBER")
+// Returns the Octopus account number from the environment variable and caches it.
+func (octo *Octopus) AccountNumber() (string, error) {
+	if octo.accountNumber != "" {
+		return octo.accountNumber, nil
+	}
 
-	if accountNumber == "" {
+	octo.accountNumber = os.Getenv("OCTOPUS_ACCOUNT_NUMBER")
+
+	if octo.accountNumber == "" {
 		return "", errors.New("No account number available; OCTOPUS_ACCOUNT_NUMBER environment variable is not set")
+	}
+	return octo.accountNumber, nil
+}
+
+// Sends an API request to obtain the Octopus account details. The result is cached
+// to avoid multiple requests.
+func (octo *Octopus) obtainAccountDetails() error {
+	// Check if we have cached account details
+	if octo.ElectricityMeterDeviceId != "" {
+		return nil
+	}
+
+	accountNumber, err := octo.AccountNumber()
+	if err != nil {
+		return err
 	}
 
 	q := QueryBody{
@@ -204,7 +229,7 @@ func (octo *Octopus) smartMeterId() (string, error) {
 
 	responseBytes, err := octo.query(q)
 	if err != nil {
-		return "", fmt.Errorf("Get smart meter ID: %w", err)
+		return fmt.Errorf("Get smart meter ID: %w", err)
 	}
 
 	response := struct {
@@ -228,25 +253,27 @@ func (octo *Octopus) smartMeterId() (string, error) {
 
 	err = json.Unmarshal(responseBytes, &response)
 	if err != nil {
-		return "", fmt.Errorf("Deserialise accounts response: %w", err)
+		return fmt.Errorf("Deserialise accounts response: %w", err)
 	}
 
 	if response.Errors != nil {
 		errorMsg := (*response.Errors)[0].Message
-		return "", errors.New(fmt.Sprintf("Failed to obtain account data: %s", errorMsg))
+		return errors.New(fmt.Sprintf("Failed to obtain account data: %s", errorMsg))
 	}
 
 	electricityAgreements := response.Data.Account.ElectricityAgreements
 	if len(electricityAgreements) == 0 {
-		return "", errors.New("No electricity agreements found")
+		return errors.New("No electricity agreements found")
 	}
 
 	meters := electricityAgreements[0].MeterPoint.Meters
 	if len(meters) == 0 {
-		return "", errors.New("No electricity meters found")
+		return errors.New("No electricity meters found")
 	}
 
-	return meters[0].SmartImportElectricityMeter.DeviceId, nil
+	octo.ElectricityMeterDeviceId = meters[0].SmartImportElectricityMeter.DeviceId
+
+	return nil
 }
 
 type ConsumptionReading struct {
@@ -261,7 +288,7 @@ type ConsumptionReading struct {
 }
 
 func (octo *Octopus) LiveConsumption() (*ConsumptionReading, error) {
-	deviceId, err := octo.smartMeterId()
+	err := octo.obtainAccountDetails()
 	if err != nil {
 		return nil, fmt.Errorf("Get live consumption: %w", err)
 	}
@@ -285,7 +312,7 @@ func (octo *Octopus) LiveConsumption() (*ConsumptionReading, error) {
 			}
 		}`,
 		Variables: map[string]any{
-			"deviceId": deviceId,
+			"deviceId": octo.ElectricityMeterDeviceId,
 			"start":    time.Now().Add(-2 * time.Minute).Format(time.RFC3339),
 			"end":      time.Now().Format(time.RFC3339),
 		},

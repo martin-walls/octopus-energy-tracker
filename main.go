@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"time"
 )
 
 func serveRoot(w http.ResponseWriter, r *http.Request) {
@@ -83,12 +84,16 @@ func serveRoot(w http.ResponseWriter, r *http.Request) {
 func main() {
 	octopus := Octopus{}
 
-	reading, err := octopus.LiveConsumption()
-	if err != nil {
-		log.Fatalln(err)
-	}
+	for {
+		reading, err := octopus.LiveConsumption()
+		if err != nil {
+			log.Fatalln(err)
+		}
 
-	log.Printf("Using %vW", reading.Demand)
+		log.Printf("Using %vW", reading.Demand)
+
+		time.Sleep(10 * time.Second)
+	}
 
 	// http.HandleFunc("/", serveRoot)
 	//
