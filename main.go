@@ -82,20 +82,21 @@ func serveRoot(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	octopus := Octopus{}
-	oerr := octopus.auth()
-	if oerr != nil {
-		log.Printf("Error in auth: %v", oerr)
-	}
 
-	log.Printf("Auth token: %s", octopus.Token)
-
-	http.HandleFunc("/", serveRoot)
-
-	addr := "localhost:9090"
-
-	log.Printf("Serving on %s\n", addr)
-	err := http.ListenAndServe("localhost:9090", nil)
+	reading, err := octopus.LiveConsumption()
 	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+		log.Fatalln(err)
 	}
+
+	log.Printf("Using %vW", reading.Demand)
+
+	// http.HandleFunc("/", serveRoot)
+	//
+	// addr := "localhost:9090"
+	//
+	// log.Printf("Serving on %s\n", addr)
+	// err = http.ListenAndServe("localhost:9090", nil)
+	// if err != nil {
+	// 	log.Fatal("ListenAndServe: ", err)
+	// }
 }

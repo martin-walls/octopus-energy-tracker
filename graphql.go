@@ -17,7 +17,7 @@ type QueryBody struct {
 	Variables map[string]any `json:"variables"`
 }
 
-func Query(q QueryBody) ([]byte, error) {
+func Query(q QueryBody, headers map[string]string) ([]byte, error) {
 	body, err := json.Marshal(q)
 	if err != nil {
 		return nil, err
@@ -28,6 +28,10 @@ func Query(q QueryBody) ([]byte, error) {
 		return nil, err
 	}
 	request.Header.Add("Content-Type", "application/json")
+
+	for k, v := range headers {
+		request.Header.Add(k, v)
+	}
 
 	response, err := httpClient.Do(request)
 	if err != nil {
