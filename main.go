@@ -1,9 +1,14 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
+	"time"
+
+	"github.com/coder/websocket"
 )
 
 func serveRoot(w http.ResponseWriter, r *http.Request) {
@@ -80,9 +85,49 @@ func serveRoot(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func serveWs(w http.ResponseWriter, r *http.Request) {
+	log.Println("Got websocket connection")
+	c, err := websocket.Accept(w, r, nil)
+	if err != nil {
+		log.Printf("Failed to accept websocket connection: %v", err)
+		return
+	}
+	defer c.CloseNow()
+
+	// Allow websocket to be open for at most one minute
+	ctx, cancel := context.WithTimeout(r.Context(), time.Minute)
+	defer cancel()
+
+	// Handle this as a write-only websocket
+	ctx = c.CloseRead(ctx)
+
+	t := time.Tick(1 * time.Second)
+
+	i := 0
+
+	for {
+		select {
+		case <-ctx.Done():
+			c.Close(websocket.StatusNormalClosure, "")
+			log.Println("Closing websocket as timeout expired")
+			return
+		case <-t:
+			err = c.Write(ctx, websocket.MessageText, fmt.Appendf(nil, "Value is %d", i))
+			if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
+				log.Println("Closing websocket as timeout expired")
+				return
+			} else if err != nil {
+				log.Printf("err: %v", err)
+				return
+			}
+			i += 1
+		}
+	}
+}
+
 func main() {
 	// octopus := Octopus{}
-
+	//
 	// for {
 	// 	reading, err := octopus.LiveConsumption()
 	// 	if err != nil {
@@ -103,6 +148,8 @@ func main() {
 	http.HandleFunc("/foo", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("foo"))
 	})
+
+	http.HandleFunc("/ws", serveWs)
 
 	addr := "localhost:9090"
 
