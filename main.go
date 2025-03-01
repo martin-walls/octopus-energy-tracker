@@ -4,7 +4,6 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"time"
 )
 
 func serveRoot(w http.ResponseWriter, r *http.Request) {
@@ -82,26 +81,34 @@ func serveRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	octopus := Octopus{}
+	// octopus := Octopus{}
 
-	for {
-		reading, err := octopus.LiveConsumption()
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		log.Printf("Using %vW", reading.Demand)
-
-		time.Sleep(10 * time.Second)
-	}
-
-	// http.HandleFunc("/", serveRoot)
+	// for {
+	// 	reading, err := octopus.LiveConsumption()
+	// 	if err != nil {
+	// 		if errors.Is(err, ErrSkippingRequest) || errors.Is(err, ErrTooManyRequests) {
+	// 			log.Println(err)
+	// 		} else {
+	// 			log.Fatalln(err)
+	// 		}
+	// 	} else {
+	// 		log.Printf("Using %vW", reading.Demand)
+	// 	}
 	//
-	// addr := "localhost:9090"
-	//
-	// log.Printf("Serving on %s\n", addr)
-	// err = http.ListenAndServe("localhost:9090", nil)
-	// if err != nil {
-	// 	log.Fatal("ListenAndServe: ", err)
+	// 	time.Sleep(10 * time.Second)
 	// }
+
+	http.Handle("/", http.FileServer(http.Dir("static")))
+
+	http.HandleFunc("/foo", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("foo"))
+	})
+
+	addr := "localhost:9090"
+
+	log.Printf("Serving on %s\n", addr)
+	err := http.ListenAndServe(addr, nil)
+	if err != nil {
+		log.Fatal("ListenAndServe: ", err)
+	}
 }

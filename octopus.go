@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -25,6 +26,9 @@ type Octopus struct {
 	accountNumber string
 	// The device ID of the electricity smart meter.
 	ElectricityMeterDeviceId string
+	// If we have received a "Too Many Requests" error from the API, this will be
+	// a non-zero Unix timestamp indicating when we can send API requests again.
+	retryAfter int64
 }
 
 // Checks if we have a valid auth token that has not expired.
@@ -48,6 +52,11 @@ func (octo *Octopus) hasValidRefreshToken() bool {
 // [Octopus.authWithApiKey] or [Octopus.authWithRefreshToken] rather than
 // this method directly; they provide the necessary input arguments.
 func (octo *Octopus) obtainKrakenToken(input any) error {
+	// If we are supposed to be waiting before API requests, do nothing
+	if time.Now().Unix() < octo.retryAfter {
+		return ErrSkippingRequest
+	}
+
 	q := QueryBody{
 		name: "ObtainKrakenToken",
 		Query: `mutation ObtainKrakenToken($input: ObtainJSONWebTokenInput!) {
@@ -75,9 +84,7 @@ func (octo *Octopus) obtainKrakenToken(input any) error {
 				RefreshExpiresIn int    `json:"refreshExpiresIn"`
 			} `json:"obtainKrakenToken"`
 		} `json:"data"`
-		Errors *[]struct {
-			Message string `json:"message"`
-		} `json:"errors"`
+		Errors *[]KrakenError `json:"errors"`
 	}{}
 
 	err = json.Unmarshal(responseBytes, &response)
@@ -86,12 +93,8 @@ func (octo *Octopus) obtainKrakenToken(input any) error {
 	}
 
 	if response.Data.ObtainKrakenToken == nil {
-		errorMsg := "Unknown error"
-		if response.Errors != nil && len(*response.Errors) > 0 {
-			errorMsg = (*response.Errors)[0].Message
-		}
-
-		return errors.New(fmt.Sprintf("Failed to obtain Kraken token: %s", errorMsg))
+		err = octo.handleErrors(response.Errors)
+		return fmt.Errorf("Failed to obtain Kraken token: %w", err)
 	}
 
 	octo.Token = response.Data.ObtainKrakenToken.Token
@@ -168,6 +171,11 @@ func (octo *Octopus) auth() error {
 
 // Make a query to the Octopus API, ensuring we are authenticated first.
 func (octo *Octopus) query(q QueryBody) ([]byte, error) {
+	// If we are supposed to be waiting before API requests, do nothing
+	if time.Now().Unix() < octo.retryAfter {
+		return nil, ErrSkippingRequest
+	}
+
 	err := octo.auth()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to make Octopus request: %w", err)
@@ -248,9 +256,7 @@ func (octo *Octopus) obtainAccountDetails() error {
 				} `json:"electricityAgreements"`
 			} `json:"account"`
 		} `json:"data"`
-		Errors *[]struct {
-			Message string `json:"message"`
-		} `json:"errors"`
+		Errors *[]KrakenError `json:"errors"`
 	}{}
 
 	err = json.Unmarshal(responseBytes, &response)
@@ -259,8 +265,8 @@ func (octo *Octopus) obtainAccountDetails() error {
 	}
 
 	if response.Errors != nil {
-		errorMsg := (*response.Errors)[0].Message
-		return errors.New(fmt.Sprintf("Failed to obtain account data: %s", errorMsg))
+		err = octo.handleErrors(response.Errors)
+		return fmt.Errorf("Failed to obtain account data: %w", err)
 	}
 
 	electricityAgreements := response.Data.Account.ElectricityAgreements
@@ -338,9 +344,7 @@ func (octo *Octopus) LiveConsumption() (*ConsumptionReading, error) {
 				Demand string `json:"demand"`
 			} `json:"smartMeterTelemetry"`
 		} `json:"data"`
-		Errors *[]struct {
-			Message string `json:"message"`
-		} `json:"errors"`
+		Errors *[]KrakenError `json:"errors"`
 	}{}
 
 	err = json.Unmarshal(responseBytes, &response)
@@ -349,8 +353,8 @@ func (octo *Octopus) LiveConsumption() (*ConsumptionReading, error) {
 	}
 
 	if response.Errors != nil {
-		errorMsg := (*response.Errors)[0].Message
-		return nil, errors.New(fmt.Sprintf("Failed to obtain live consumption: %s", errorMsg))
+		err = octo.handleErrors(response.Errors)
+		return nil, fmt.Errorf("Failed to obtain live consumption: %w", err)
 	}
 
 	readings := *response.Data.SmartMeterTelemetry
@@ -379,4 +383,42 @@ func (octo *Octopus) LiveConsumption() (*ConsumptionReading, error) {
 		ConsumptionDelta: int(consumptionDelta),
 		Demand:           int(demand),
 	}, nil
+}
+
+type KrakenError struct {
+	Message    string `json:"message"`
+	Extensions struct {
+		ErrorCode        string `json:"errorCode"`
+		ErrorType        string `json:"errorType"`
+		ErrorDescription string `json:"errorDescription"`
+	} `json:"extensions"`
+}
+
+// Handles any errors returned by the Octopus API. Performs any rectifying actions
+// if possible, e.g. pausing API requests for a small while if we get a "Too Many Requests"
+// error. Aggregates multiple error messages into a single message.
+func (octo *Octopus) handleErrors(errs *[]KrakenError) error {
+	if errs == nil || len(*errs) == 0 {
+		return nil
+	}
+
+	var sb strings.Builder
+
+	for i, e := range *errs {
+		// "Too Many Requests" error
+		if e.Extensions.ErrorCode == "KT-CT-1199" {
+			// Stop sending API requests for a few minutes
+			octo.retryAfter = time.Now().Add(5 * time.Minute).Unix()
+			return ErrTooManyRequests
+		}
+
+		if i > 0 {
+			sb.WriteString("; ")
+		}
+		sb.WriteString(e.Extensions.ErrorCode)
+		sb.WriteString(" ")
+		sb.WriteString(e.Message)
+	}
+
+	return errors.New(sb.String())
 }
