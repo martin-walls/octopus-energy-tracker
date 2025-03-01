@@ -127,23 +127,31 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func pollLiveConsumption() {
+	octopus := Octopus{}
+
+	for {
+		reading, err := octopus.LiveConsumption()
+		if err != nil {
+			if errors.Is(err, ErrSkippingRequest) || errors.Is(err, ErrTooManyRequests) {
+				log.Println(err)
+			} else {
+				log.Fatalln(err)
+			}
+		} else {
+			log.Printf("Using %vW", reading.Demand)
+		}
+
+		time.Sleep(10 * time.Second)
+	}
+}
+
 func main() {
-	// octopus := Octopus{}
-	//
-	// for {
-	// 	reading, err := octopus.LiveConsumption()
-	// 	if err != nil {
-	// 		if errors.Is(err, ErrSkippingRequest) || errors.Is(err, ErrTooManyRequests) {
-	// 			log.Println(err)
-	// 		} else {
-	// 			log.Fatalln(err)
-	// 		}
-	// 	} else {
-	// 		log.Printf("Using %vW", reading.Demand)
-	// 	}
-	//
-	// 	time.Sleep(10 * time.Second)
-	// }
+	// TODO: use a broker architecture to broadcast messages to all receivers
+	// see https://stackoverflow.com/questions/36417199/how-to-broadcast-message-using-channel
+	// c := make(chan int)
+
+	go pollLiveConsumption()
 
 	http.Handle("/", http.FileServer(http.Dir("static")))
 
