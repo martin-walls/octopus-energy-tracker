@@ -1,4 +1,4 @@
-package main
+package broadcaster
 
 type Broadcaster[T any] struct {
 	// Channel used for publishing messages to.

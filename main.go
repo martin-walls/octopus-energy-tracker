@@ -3,8 +3,8 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"html/template"
 	"log"
+	"martin-walls/octopus-energy-tracker/internal/broadcaster"
 	"net/http"
 	"time"
 
@@ -12,7 +12,7 @@ import (
 )
 
 type WebsocketHandler struct {
-	broadcaster *Broadcaster[*ConsumptionReading]
+	broadcaster *broadcaster.Broadcaster[*ConsumptionReading]
 }
 
 func (wsHandler *WebsocketHandler) handle(w http.ResponseWriter, r *http.Request) {
@@ -56,7 +56,7 @@ func (wsHandler *WebsocketHandler) handle(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func pollLiveConsumption(b *Broadcaster[*ConsumptionReading]) {
+func pollLiveConsumption(b *broadcaster.Broadcaster[*ConsumptionReading]) {
 	octopus := Octopus{}
 
 	for {
@@ -77,7 +77,7 @@ func pollLiveConsumption(b *Broadcaster[*ConsumptionReading]) {
 }
 
 func main() {
-	b := NewBroadcaster[*ConsumptionReading]()
+	b := broadcaster.NewBroadcaster[*ConsumptionReading]()
 
 	go b.Start()
 	defer b.Stop()
