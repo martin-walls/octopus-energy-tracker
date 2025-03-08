@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -11,6 +11,8 @@ import (
 
 	"github.com/coder/websocket"
 )
+
+var broadcaster = NewBroadcaster[*ConsumptionReading]()
 
 func serveRoot(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.URL)
@@ -102,9 +104,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	// Handle this as a write-only websocket
 	ctx = c.CloseRead(ctx)
 
-	t := time.Tick(1 * time.Second)
-
-	i := 0
+	readings := broadcaster.Subscribe()
 
 	for {
 		select {
@@ -112,8 +112,15 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 			c.Close(websocket.StatusNormalClosure, "")
 			log.Println("Closing websocket as timeout expired")
 			return
-		case <-t:
-			err = c.Write(ctx, websocket.MessageText, fmt.Appendf(nil, "Value is %d", i))
+		case reading := <-readings:
+			readingJson, err := json.Marshal(reading)
+			if err != nil {
+				log.Printf("Failed to JSON encode consumption reading: %v", reading)
+				continue
+			}
+
+			err = c.Write(ctx, websocket.MessageText, readingJson)
+
 			if websocket.CloseStatus(err) == websocket.StatusNormalClosure ||
 				errors.Is(err, context.DeadlineExceeded) {
 				log.Println("Timeout expired")
@@ -122,12 +129,11 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 				log.Printf("err: %v", err)
 				return
 			}
-			i += 1
 		}
 	}
 }
 
-func pollLiveConsumption() {
+func pollLiveConsumption(b *Broadcaster[*ConsumptionReading]) {
 	octopus := Octopus{}
 
 	for {
@@ -140,6 +146,7 @@ func pollLiveConsumption() {
 			}
 		} else {
 			log.Printf("Using %vW", reading.Demand)
+			b.Publish(reading)
 		}
 
 		time.Sleep(10 * time.Second)
@@ -147,11 +154,10 @@ func pollLiveConsumption() {
 }
 
 func main() {
-	// TODO: use a broker architecture to broadcast messages to all receivers
-	// see https://stackoverflow.com/questions/36417199/how-to-broadcast-message-using-channel
-	// c := make(chan int)
+	go broadcaster.Start()
+	defer broadcaster.Stop()
 
-	go pollLiveConsumption()
+	go pollLiveConsumption(broadcaster)
 
 	http.Handle("/", http.FileServer(http.Dir("static")))
 
