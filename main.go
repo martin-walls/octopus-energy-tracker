@@ -98,11 +98,8 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	defer c.CloseNow()
 
 	// Allow websocket to be open for at most one minute
-	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
-	defer cancel()
-
 	// Handle this as a write-only websocket
-	ctx = c.CloseRead(ctx)
+	ctx := c.CloseRead(r.Context())
 
 	readings := broadcaster.Subscribe()
 
@@ -110,7 +107,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-ctx.Done():
 			c.Close(websocket.StatusNormalClosure, "")
-			log.Println("Closing websocket as timeout expired")
+			log.Println("Closing websocket")
 			return
 		case reading := <-readings:
 			readingJson, err := json.Marshal(reading)
@@ -121,9 +118,8 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 
 			err = c.Write(ctx, websocket.MessageText, readingJson)
 
-			if websocket.CloseStatus(err) == websocket.StatusNormalClosure ||
-				errors.Is(err, context.DeadlineExceeded) {
-				log.Println("Timeout expired")
+			if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
+				log.Println("Closing websocket")
 				return
 			} else if err != nil {
 				log.Printf("err: %v", err)
