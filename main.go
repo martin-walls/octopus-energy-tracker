@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"html/template"
@@ -11,8 +10,6 @@ import (
 
 	"github.com/coder/websocket"
 )
-
-var broadcaster = NewBroadcaster[*ConsumptionReading]()
 
 func serveRoot(w http.ResponseWriter, r *http.Request) {
 	log.Println(r.URL)
@@ -88,7 +85,11 @@ func serveRoot(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func serveWs(w http.ResponseWriter, r *http.Request) {
+type WebsocketHandler struct {
+	broadcaster *Broadcaster[*ConsumptionReading]
+}
+
+func (wsHandler *WebsocketHandler) handle(w http.ResponseWriter, r *http.Request) {
 	log.Println("Got websocket connection")
 	c, err := websocket.Accept(w, r, nil)
 	if err != nil {
@@ -101,7 +102,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	// Handle this as a write-only websocket
 	ctx := c.CloseRead(r.Context())
 
-	readings := broadcaster.Subscribe()
+	readings := wsHandler.broadcaster.Subscribe()
 
 	for {
 		select {
@@ -150,10 +151,12 @@ func pollLiveConsumption(b *Broadcaster[*ConsumptionReading]) {
 }
 
 func main() {
-	go broadcaster.Start()
-	defer broadcaster.Stop()
+	b := NewBroadcaster[*ConsumptionReading]()
 
-	go pollLiveConsumption(broadcaster)
+	go b.Start()
+	defer b.Stop()
+
+	go pollLiveConsumption(b)
 
 	http.Handle("/", http.FileServer(http.Dir("static")))
 
@@ -161,7 +164,10 @@ func main() {
 		w.Write([]byte("foo"))
 	})
 
-	http.HandleFunc("/ws", serveWs)
+	wsHandler := WebsocketHandler{
+		broadcaster: b,
+	}
+	http.HandleFunc("/ws", wsHandler.handle)
 
 	addr := "localhost:9090"
 
