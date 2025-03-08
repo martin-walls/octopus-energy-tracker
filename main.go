@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"martin-walls/octopus-energy-tracker/internal/broadcaster"
+	"martin-walls/octopus-energy-tracker/internal/octopus"
 	"net/http"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 )
 
 type WebsocketHandler struct {
-	broadcaster *broadcaster.Broadcaster[*ConsumptionReading]
+	broadcaster *broadcaster.Broadcaster[*octopus.ConsumptionReading]
 }
 
 func (wsHandler *WebsocketHandler) handle(w http.ResponseWriter, r *http.Request) {
@@ -56,13 +57,13 @@ func (wsHandler *WebsocketHandler) handle(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func pollLiveConsumption(b *broadcaster.Broadcaster[*ConsumptionReading]) {
-	octopus := Octopus{}
+func pollLiveConsumption(b *broadcaster.Broadcaster[*octopus.ConsumptionReading]) {
+	octo := octopus.Octopus{}
 
 	for {
-		reading, err := octopus.LiveConsumption()
+		reading, err := octo.LiveConsumption()
 		if err != nil {
-			if errors.Is(err, ErrSkippingRequest) || errors.Is(err, ErrTooManyRequests) {
+			if errors.Is(err, octopus.ErrSkippingRequest) || errors.Is(err, octopus.ErrTooManyRequests) {
 				log.Println(err)
 			} else {
 				log.Fatalln(err)
@@ -77,7 +78,7 @@ func pollLiveConsumption(b *broadcaster.Broadcaster[*ConsumptionReading]) {
 }
 
 func main() {
-	b := broadcaster.NewBroadcaster[*ConsumptionReading]()
+	b := broadcaster.NewBroadcaster[*octopus.ConsumptionReading]()
 
 	go b.Start()
 	defer b.Stop()
