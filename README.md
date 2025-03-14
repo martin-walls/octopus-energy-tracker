@@ -12,15 +12,26 @@
 | `OCTOPUS_API_KEY`        | Your API key from the Octopus dashboard.  |
 | `OCTOPUS_ACCOUNT_NUMBER` | Your Octopus account number (A-xxxxxxxx). |
 
-## Generating TypeScript types
+## Building
+
+Build the project with
+
+```sh
+just build
+```
+
+This will generate TypeScript types from the Go code (into `ts/types/`),
+then transpile the TypeScript into JavaScript (into `static/dist/`).
+
+### Generating TypeScript types
 
 TypeScript types are generated from Go code using [Tygo](https://github.com/gzuidhof/tygo).
 The generated output will be in the `ts-types/` directory.
 
-To do this, run
+To run just this step:
 
 ```sh
-just generate
+just generate-ts
 ```
 
 If you have Tygo installed locally, the local binary will be used.

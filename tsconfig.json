@@ -4,7 +4,7 @@
     "module": "esnext",
     "lib": ["es2022", "dom", "dom.iterable"],
     "esModuleInterop": true,
-    "outDir": "dist/",
+    "outDir": "static/dist/",
     "rootDir": "ts",
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,

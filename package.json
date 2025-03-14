@@ -5,7 +5,7 @@
   "main": "static/script/index.js",
   "scripts": {
     "build": "tsc",
-    "clean": "rm -r dist/",
+    "clean": "rm -r static/dist/",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Martin Walls",
