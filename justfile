@@ -1,3 +1,6 @@
+default:
+    just --list
+
 generate:
     if type tygo > /dev/null; then \
         tygo generate; \
