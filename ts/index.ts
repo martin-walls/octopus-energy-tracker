@@ -19,6 +19,11 @@ async function ws() {
     const data: ConsumptionReading = JSON.parse(e.data);
 
     console.log(`Using ${data.demand}W`);
+
+    const demandSpan = document.getElementById("demand-value");
+    if (demandSpan != null) {
+      demandSpan.textContent = data.demand.toString();
+    }
   });
 
   socket.addEventListener("error", (e) => {
