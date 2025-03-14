@@ -45,11 +45,11 @@ go install github.com/gzuidhof/tygo@latest
 
 ## Running
 
-Run the server with
+Run the Go server with
 
 ```sh
 just run
 ```
 
-This will first build the TypeScript files using the `build` recipe,
-then run the Go server.
+If you make changes to the TypeScript code, run `just build` to update the JavaScript code.
+You don't need to restart the Go server.

@@ -13,7 +13,7 @@ generate-ts:
 build-ts: generate-ts
     npm run build
 
-run: build
+run:
     go run .
 
 clean:
