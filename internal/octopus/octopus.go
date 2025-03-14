@@ -286,13 +286,13 @@ func (octo *Octopus) obtainAccountDetails() error {
 
 type ConsumptionReading struct {
 	// The point in time that this reading was made.
-	Timestamp time.Time
+	Timestamp time.Time `json:"timestamp"`
 	// The total energy consumption of the meter, in Wh.
-	TotalConsumption int
+	TotalConsumption int `json:"totalConsumption"`
 	// The energy consumption since the last reading, in Wh.
-	ConsumptionDelta int
+	ConsumptionDelta int `json:"consumptionDelta"`
 	// The current demand at the given timestamp, in W.
-	Demand int
+	Demand int `json:"demand"`
 }
 
 func (octo *Octopus) LiveConsumption() (*ConsumptionReading, error) {

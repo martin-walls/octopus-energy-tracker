@@ -1,0 +1,7 @@
+services:
+  generate:
+    build:
+      context: .
+      dockerfile: Dockerfile.generate
+    volumes:
+      - ./:/app

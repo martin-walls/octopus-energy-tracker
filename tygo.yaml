@@ -1,0 +1,9 @@
+# Generate typescript types with `tygo generate`
+#
+# Default mappings to apply to all packages
+type_mappings:
+  time.Time: "string /* RFC3339 */"
+
+packages:
+  - path: "martin-walls/octopus-energy-tracker/internal/octopus"
+    output_path: "ts-types/octopus.ts"
