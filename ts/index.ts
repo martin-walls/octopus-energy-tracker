@@ -1,3 +1,5 @@
+import type { ConsumptionReading } from "./types/octopus";
+
 let socket: WebSocket;
 
 async function sleep(ms: number) {
@@ -14,7 +16,9 @@ async function ws() {
   // });
 
   socket.addEventListener("message", (e) => {
-    console.log("From server:", e.data);
+    const data: ConsumptionReading = JSON.parse(e.data);
+
+    console.log(`Using ${data.demand}W`);
   });
 
   socket.addEventListener("error", (e) => {
@@ -27,3 +31,5 @@ async function ws() {
     setTimeout(ws, 1000);
   });
 }
+
+document.getElementById("btn-connect")?.addEventListener("click", ws);
