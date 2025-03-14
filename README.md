@@ -42,3 +42,14 @@ Install Tygo locally with
 ```sh
 go install github.com/gzuidhof/tygo@latest
 ```
+
+## Running
+
+Run the server with
+
+```sh
+just run
+```
+
+This will first build the TypeScript files using the `build` recipe,
+then run the Go server.

@@ -13,6 +13,9 @@ generate-ts:
 build-ts: generate-ts
     npm run build
 
+run: build
+    go run .
+
 clean:
     rm -r ts/types/
     npm run clean
