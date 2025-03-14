@@ -1,0 +1,16 @@
+{
+  "name": "octopus-energy-tracker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "static/script/index.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -r dist/",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Martin Walls",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.8.2"
+  }
+}

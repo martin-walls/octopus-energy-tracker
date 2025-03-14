@@ -6,4 +6,4 @@ type_mappings:
 
 packages:
   - path: "martin-walls/octopus-energy-tracker/internal/octopus"
-    output_path: "ts-types/octopus.ts"
+    output_path: "ts/types/octopus.ts"
