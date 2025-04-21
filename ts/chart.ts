@@ -2,31 +2,37 @@ import Chart from "chart.js/auto";
 import "chartjs-adapter-date-fns";
 import type { ConsumptionReading } from "./types/octopus";
 
+const container = document.getElementById("chart") as HTMLCanvasElement;
+
 let chartData: { x: number; y: number }[] = [];
-let chart: Chart;
 
-export function initChart() {
-  const container = document.getElementById("chart") as HTMLCanvasElement;
-
-  chart = new Chart(container, {
-    type: "line",
-    data: {
-      datasets: [
-        {
-          label: "Demand",
-          data: chartData,
+const chart = new Chart(container, {
+  type: "line",
+  data: {
+    datasets: [
+      {
+        label: "Demand (W)",
+        data: chartData,
+      },
+    ],
+  },
+  options: {
+    scales: {
+      x: {
+        type: "time",
+        time: {
+          minUnit: "second",
         },
-      ],
-    },
-    options: {
-      scales: {
-        x: {
-          type: "time",
+        grid: {
+          display: false,
         },
       },
+      y: {
+        beginAtZero: true,
+      },
     },
-  });
-}
+  },
+});
 
 export function updateChart(reading: ConsumptionReading) {
   chartData.push({
