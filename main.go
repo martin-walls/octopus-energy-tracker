@@ -73,7 +73,7 @@ func pollLiveConsumption(b *broadcaster.Broadcaster[*octopus.ConsumptionReading]
 			b.Publish(reading)
 		}
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(30 * time.Second)
 	}
 }
 
