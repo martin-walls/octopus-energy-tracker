@@ -6,8 +6,11 @@ import (
 	"log"
 	"martin-walls/octopus-energy-tracker/internal/broadcaster"
 	"martin-walls/octopus-energy-tracker/internal/octopus"
+	"martin-walls/octopus-energy-tracker/internal/store"
 	"net/http"
 	"time"
+
+	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/coder/websocket"
 )
@@ -78,6 +81,40 @@ func pollLiveConsumption(b *broadcaster.Broadcaster[*octopus.ConsumptionReading]
 }
 
 func main() {
+	s := store.NewStore()
+	defer s.Close()
+
+	err := s.InsertReadings([]*octopus.ConsumptionReading{
+		{
+			Timestamp:        time.Now().Add(time.Minute * -1),
+			TotalConsumption: 5,
+			ConsumptionDelta: 1,
+			Demand:           48,
+		},
+		{
+			Timestamp:        time.Now(),
+			TotalConsumption: 7,
+			ConsumptionDelta: 2,
+			Demand:           56,
+		},
+	})
+	if err != nil {
+		log.Fatal("InsertReadings: ", err)
+	}
+
+	readings, err := s.Readings()
+	if err != nil {
+		log.Fatal("Readings: ", err)
+	}
+
+	for _, r := range readings {
+		log.Printf("%v: %vW", r.Timestamp, r.Demand)
+	}
+
+	return
+
+	/////
+
 	b := broadcaster.NewBroadcaster[*octopus.ConsumptionReading]()
 
 	go b.Start()
@@ -99,7 +136,7 @@ func main() {
 	addr := "localhost:9090"
 
 	log.Printf("Serving on %s\n", addr)
-	err := http.ListenAndServe(addr, nil)
+	err = http.ListenAndServe(addr, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}

@@ -5,3 +5,5 @@ ts/types/
 
 # Generated JavaScript
 dist/
+
+db.sqlite
