@@ -2,16 +2,21 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"martin-walls/octopus-energy-tracker/internal/octopus"
 	"strings"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/sqlite3"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 const dbPath = "./db.sqlite"
+const migrationsPath = "./migrations"
 
 type Store struct {
 	db *sql.DB
@@ -26,12 +31,12 @@ type reading struct {
 func NewStore() *Store {
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
-		log.Fatal("Error connecting to DB: ", err)
+		log.Fatal("NewStore: Error connecting to DB: ", err)
 	}
 
-	err = setupDb(db)
+	err = runMigrations(db)
 	if err != nil {
-		log.Fatal("Error setting up DB: ", err)
+		log.Fatal("NewStore: ", err)
 	}
 
 	return &Store{
@@ -39,18 +44,25 @@ func NewStore() *Store {
 	}
 }
 
-func setupDb(db *sql.DB) error {
-	schemaStmt := `
-		CREATE TABLE IF NOT EXISTS readings (
-			timestamp TEXT PRIMARY KEY,
-			total_consumption INTEGER NOT NULL,
-			demand INTEGER NOT NULL
-		);
-	`
-
-	_, err := db.Exec(schemaStmt)
+func runMigrations(db *sql.DB) error {
+	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
 	if err != nil {
-		return fmt.Errorf("%w: %s", err, schemaStmt)
+		return fmt.Errorf("migrate: %v", err)
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://"+migrationsPath,
+		"sqlite3",
+		driver)
+	if err != nil {
+		return fmt.Errorf("migrate: %v", err)
+	}
+
+	err = m.Up()
+	if err != nil {
+		if !errors.Is(err, migrate.ErrNoChange) {
+			return fmt.Errorf("migrate: %v", err)
+		}
 	}
 
 	return nil
