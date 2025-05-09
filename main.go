@@ -88,13 +88,11 @@ func main() {
 		{
 			Timestamp:        time.Now().Add(time.Minute * -1),
 			TotalConsumption: 5,
-			ConsumptionDelta: 1,
 			Demand:           48,
 		},
 		{
 			Timestamp:        time.Now(),
 			TotalConsumption: 7,
-			ConsumptionDelta: 2,
 			Demand:           56,
 		},
 	})

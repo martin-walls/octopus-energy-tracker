@@ -20,7 +20,6 @@ type Store struct {
 type reading struct {
 	timestamp        string
 	totalConsumption int
-	consumptionDelta int
 	demand           int
 }
 
@@ -45,7 +44,6 @@ func setupDb(db *sql.DB) error {
 		CREATE TABLE IF NOT EXISTS readings (
 			timestamp TEXT PRIMARY KEY,
 			total_consumption INTEGER NOT NULL,
-			consumption_delta INTEGER NOT NULL,
 			demand INTEGER NOT NULL
 		);
 	`
@@ -60,18 +58,17 @@ func setupDb(db *sql.DB) error {
 
 func (s *Store) InsertReadings(rs []*octopus.ConsumptionReading) error {
 	insertStmt := `
-		INSERT INTO readings (timestamp, total_consumption, consumption_delta, demand)
+		INSERT INTO readings (timestamp, total_consumption, demand)
 		VALUES 
 	`
 	values := []any{}
 
 	for _, reading := range rs {
-		insertStmt += "(?, ?, ?, ?),"
+		insertStmt += "(?, ?, ?),"
 		values = append(
 			values,
 			reading.Timestamp.Format(time.RFC3339),
 			reading.TotalConsumption,
-			reading.ConsumptionDelta,
 			reading.Demand)
 	}
 
@@ -104,7 +101,7 @@ func (s *Store) Readings() ([]*octopus.ConsumptionReading, error) {
 	for rows.Next() {
 		var r reading
 
-		err = rows.Scan(&r.timestamp, &r.totalConsumption, &r.consumptionDelta, &r.demand)
+		err = rows.Scan(&r.timestamp, &r.totalConsumption, &r.demand)
 		if err != nil {
 			return nil, fmt.Errorf("Readings: %v", err)
 		}
@@ -117,7 +114,6 @@ func (s *Store) Readings() ([]*octopus.ConsumptionReading, error) {
 		readings = append(readings, &octopus.ConsumptionReading{
 			Timestamp:        timestamp,
 			TotalConsumption: r.totalConsumption,
-			ConsumptionDelta: r.consumptionDelta,
 			Demand:           r.demand,
 		})
 	}

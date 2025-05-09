@@ -289,8 +289,6 @@ type ConsumptionReading struct {
 	Timestamp time.Time `json:"timestamp"`
 	// The total energy consumption of the meter, in Wh.
 	TotalConsumption int `json:"totalConsumption"`
-	// The energy consumption since the last reading, in Wh.
-	ConsumptionDelta int `json:"consumptionDelta"`
 	// The current demand at the given timestamp, in W.
 	Demand int `json:"demand"`
 }
@@ -316,7 +314,6 @@ func (octo *Octopus) LiveConsumption() (*ConsumptionReading, error) {
 			) {
 				readAt
 				consumption
-				consumptionDelta
 				demand
 			}
 		}`,
@@ -338,8 +335,6 @@ func (octo *Octopus) LiveConsumption() (*ConsumptionReading, error) {
 				ReadAt time.Time `json:"readAt"`
 				// String containing a float that is always to the nearest integer
 				Consumption string `json:"consumption"`
-				// String containing a float that is always to the nearest integer
-				ConsumptionDelta string `json:"consumptionDelta"`
 				// String containing a float that is always to the nearest integer
 				Demand string `json:"demand"`
 			} `json:"smartMeterTelemetry"`
@@ -368,10 +363,6 @@ func (octo *Octopus) LiveConsumption() (*ConsumptionReading, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Deserialise live consumption: %w", err)
 	}
-	consumptionDelta, err := strconv.ParseFloat(latestReading.ConsumptionDelta, 64)
-	if err != nil {
-		return nil, fmt.Errorf("Deserialise live consumption: %w", err)
-	}
 	demand, err := strconv.ParseFloat(latestReading.Demand, 64)
 	if err != nil {
 		return nil, fmt.Errorf("Deserialise live consumption: %w", err)
@@ -380,7 +371,6 @@ func (octo *Octopus) LiveConsumption() (*ConsumptionReading, error) {
 	return &ConsumptionReading{
 		Timestamp:        latestReading.ReadAt,
 		TotalConsumption: int(consumption),
-		ConsumptionDelta: int(consumptionDelta),
 		Demand:           int(demand),
 	}, nil
 }
